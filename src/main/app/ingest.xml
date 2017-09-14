@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:anypoint-mq="http://www.mulesoft.org/schema/mule/anypoint-mq" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/anypoint-mq http://www.mulesoft.org/schema/mule/anypoint-mq/current/mule-anypoint-mq.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <anypoint-mq:config name="Anypoint_MQ_Configuration-version2" maxRedelivery="2" doc:name="Anypoint MQ Configuration">
+        <anypoint-mq:provider url="https://mq-us-east-1.anypoint.mulesoft.com/api/v1" clientId="4bcc8fbee5884633a0d63373846264d2" clientSecret="3f9921a199ce4deCB9F9f7A8C086529c"/>
+    </anypoint-mq:config>
+    <flow name="ingestFlow">
+        <anypoint-mq:subscriber config-ref="Anypoint_MQ_Configuration-version2" destination="sfdcContactUpdate" doc:name="Anypoint MQ"/>
+        <dw:transform-message doc:name="transform 2 sfdc api" metadata:id="ac8ac160-8c4e-4e2c-b325-02f29d7444e2">
+            <dw:input-payload doc:sample="examples/inboundJson.json" mimeType="application/json"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	sfdcContactId: "0033600000te8MjAAI",
+	address: payload.deliveryAddresses map ((deliveryAddress , indexOfDeliveryAddress) -> {
+		"Mailing City": deliveryAddress.city,
+		"Mailing Country": deliveryAddress.country,
+		"Mailing PostalCode": deliveryAddress.postalCode,
+		"Mailing State": deliveryAddress.state,
+		"Mailing Street": deliveryAddress.address
+	})
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <flow-ref name="put:/sfdc-contact/{userId}:api-config" doc:name="put:/sfdc-contact/{userId}:api-config"/>
+    </flow>
+</mule>

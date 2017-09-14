@@ -1,0 +1,57 @@
+#%RAML 0.8
+title: SFDC-Contact-sAPI
+version: 1.0
+baseUri: http://sfdc-contact-sapi.cloudhub.io/system
+/sfdc-contact:
+  description: sfdc Contacts interface
+  post:
+    description: |
+      creates a new contact entry in salesforce - returns Contact Id for SFDC contact object
+    body:
+      application/json: 
+        example: !include examples/create_user_request.json
+    responses: 
+      201:
+        description: |
+          successful contact creation
+        body: 
+          application/json: 
+            example: !include examples/create_user_response.json 
+  /{userId}:
+    uriParameters: 
+      userId:
+        type: string
+        description: email address of user
+        required: true
+        default: max@mulesoft.com
+        example: max@mulesoft.com
+    get:
+      description: |
+        retrieve a user by userid [email]
+      responses: 
+        200:
+          body: 
+            application/json: 
+              example: !include examples/create_user_response.json
+    put:
+      description: |
+        updates the user details in SFDC
+      body:
+        application/json: 
+          example: !include examples/user_put.json
+      responses: 
+       204:
+        description: Successful update of user in SFDC contact
+        body: 
+          application/json: 
+            example: |
+              {
+                "status":"Successful update of user in SFDC contact"
+              } 
+    delete: 
+      description: |
+        deletes the user identified by email [userid] from SFDC
+      responses: 
+        204:
+          description: Successful deletion of user from SFDC
+      

@@ -1,0 +1,9 @@
+{
+  "firstName" : "max",
+  "lastName" : "mule",
+  "company" : "MuleSoft",
+  "phoneNumber" : "1234-555-23434",
+  "email" : "max@mulesoft.com",
+  "password" : "Mule123",
+  "sfdcContactId" : "contactIdInSFDC"            
+}

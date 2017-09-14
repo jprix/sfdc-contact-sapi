@@ -1,0 +1,16 @@
+{
+  "firstName" : "max",
+  "lastName" : "mule",
+  "company" : "MuleSoft",
+  "phoneNumber" : "1234-555-23434",
+  "email" : "max@mulesoft.com",
+  "password" : "Mule123",
+  "sfdcContactId" : "contactIdInSFDC",
+  "address": [{
+		"Mailing City": "Queens",
+		"Mailing Country": "US",
+		"Mailing PostalCode": "11365",
+		"Mailing State": "NY",
+		"Mailing Street": "4th street"
+	}]            
+}

@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <sfdc:config name="Salesforce__Basic_Authentication" username="${sfdc.user}" password="${sfdc.password}" securityToken="${sfdc.secret}" doc:name="Salesforce: Basic Authentication" />
+    <http:listener-config name="api-httpListenerConfig" host="${http.host}" port="${http.port}" doc:name="HTTP Listener Configuration" />
+    <apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router" />
+    <flow name="api-main">
+        <http:listener config-ref="api-httpListenerConfig" path="/system/*" doc:name="HTTP" />
+        <apikit:router config-ref="api-config" doc:name="APIkit Router" />
+        <exception-strategy ref="api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy" />
+    </flow>
+    <flow name="api-console">
+        <http:listener config-ref="api-httpListenerConfig" path="/console/*" doc:name="HTTP" />
+        <apikit:console config-ref="api-config" doc:name="APIkit Console" />
+    </flow>
+    <flow name="put:/sfdc-contact/{userId}:api-config">
+        <dw:transform-message doc:name="inbound json xform">
+            <dw:input-payload doc:sample="sample_data/json_1.json"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[{
+	Id: payload.sfdcContactId,
+	MailingStreet: payload.address[0]."Mailing Street",
+	MailingCity: payload.address[0]."Mailing City",
+	MailingState: payload.address[0]."Mailing State",
+	MailingPostalCode: payload.address[0]."Mailing PostalCode",
+	MailingCountry: payload.address[0]."Mailing Country"
+}]]]></dw:set-payload>
+        </dw:transform-message>
+        <sfdc:update config-ref="Salesforce__Basic_Authentication" type="Contact" doc:name="Salesforce">
+            <sfdc:objects ref="#[payload]"/>
+        </sfdc:update>
+        <dw:transform-message doc:name="return status">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+ {
+  "status":"Successful update of user in SFDC contact"
+ } ]]></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+    <flow name="get:/sfdc-contact/{userId}:api-config">
+        <sfdc:query-single config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT AccountId,Department,Description,Email,FirstName,Id,LastName,MailingCity,MailingCountry,MailingPostalCode,MailingState,MailingStreet,Name,Phone FROM Contact WHERE Email = '#[flowVars.userId]'" doc:name="Salesforce" />
+        <dw:transform-message doc:name="return json response" metadata:id="b1a923b7-b71b-414a-bd41-29edc2212788">
+            <dw:input-payload doc:sample="sample_data/Contact.dwl" />
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	firstName: payload.FirstName,
+	lastName: payload.LastName,
+	phoneNumber: payload.Phone,
+	email: payload.Email,
+	sfdcContactId: payload.Id,
+	address: [{
+		"Mailing City": payload.MailingCity,
+		"Mailing Country": payload.MailingCountry,
+		"Mailing PostalCode": payload.MailingPostalCode,
+		"Mailing State": payload.MailingState,
+		"Mailing Street": payload.MailingStreet
+	}],
+	date: now
+}]]></dw:set-payload>
+        </dw:transform-message>
+    </flow>
+    <flow name="post:/sfdc-contact:api-config">
+        <dw:transform-message doc:name="Transform Message">
+            <dw:input-payload />
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	LastName: payload.lastName,
+	FirstName: payload.firstName,
+	Phone: payload.phoneNumber,
+	Email: payload.email
+}]]></dw:set-payload>
+            <dw:set-variable variableName="user"><![CDATA[%dw 1.0
+%output application/java
+---
+payload as :object {class: "java.util.HashMap"}]]></dw:set-variable>
+        </dw:transform-message>
+        <sfdc:create-single config-ref="Salesforce__Basic_Authentication" type="Contact" doc:name="Salesforce">
+            <sfdc:object ref="#[payload]" />
+        </sfdc:create-single>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+%var user = flowVars.user
+---
+{
+	firstName: user.firstName,
+	lastName: user.lastName,
+	company: user.company,
+	phoneNumber: user.phoneNumber,
+	email: user.email,
+	sfdcContactId: payload.id
+}]]></dw:set-payload>
+            <dw:set-variable variableName="sfdcContactId"><![CDATA[%dw 1.0
+%output application/java
+---
+
+payload.id as :string]]></dw:set-variable>
+        </dw:transform-message>
+        <tracking:custom-event event-name="SFDC-Contact-Created" doc:name="Custom Business Event">
+            <tracking:meta-data key="ContactEmail" value="#[flowVars.user.email]" />
+            <tracking:meta-data key="sfdcContactId" value="#[flowVars.sfdcContactId]" />
+        </tracking:custom-event>
+    </flow>
+    <flow name="delete:/sfdc-contact/{userId}:api-config">
+        <sfdc:query-single config-ref="Salesforce__Basic_Authentication" query="dsql:SELECT Id FROM Contact WHERE Email = '#[flowVars.userId]'" doc:name="Salesforce"/>
+        <choice doc:name="Choice">
+            <when expression="#[payload == null]">
+                <logger message="No SFDC record for user #[flowVars.userId]" level="INFO" doc:name="Logger"/>
+            </when>
+            <otherwise>
+                <dw:transform-message doc:name="Transform Message">
+                    <dw:input-payload doc:sample="sample_data/Contact_1.dwl"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[payload.Id]]]></dw:set-payload>
+                    <dw:set-variable variableName="contactId"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+}]]></dw:set-variable>
+                </dw:transform-message>
+                <sfdc:delete config-ref="Salesforce__Basic_Authentication" doc:name="Salesforce">
+                    <sfdc:ids ref="#[payload]"/>
+                </sfdc:delete>
+                <logger message="Deleted user #[flowVars.userId] from SFDC Contact Id =  #[payload[0].id]" level="INFO" doc:name="Logger"/>
+                <tracking:custom-event event-name="SFDC-Contact-Deleted" doc:name="Custom Business Event">
+                    <tracking:meta-data key="DeletedContactEmail" value="#[flowVars.userId]"/>
+                    <tracking:meta-data key="DeletedContactSFDCId" value="#[payload[0].id]"/>
+                </tracking:custom-event>
+            </otherwise>
+        </choice>
+    </flow>
+    <apikit:mapping-exception-strategy name="api-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>

@@ -1,0 +1,17 @@
+{
+  "firstName": "max",
+  "lastName": "mule",
+  "phoneNumber": "1234-555-23434",
+  "email": "max@mulesoft.com",
+  "sfdcContactId": "0033600000te8MjAAI",
+  "address": [
+    {
+      "Mailing City": "San Francisco",
+      "Mailing Country": "US",
+      "Mailing PostalCode": "90210",
+      "Mailing State": "California",
+      "Mailing Street": "77 Geary"
+    }
+  ],
+  "date": "2017-09-14T11:06:33.796-04:00"
+}
